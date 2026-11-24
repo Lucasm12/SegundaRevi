@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Revisão — Engenharia de Requisitos, Qualidade e Testes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F3F5F8; --surface:#FFFFFF; --ink:#1B2338; --muted:#5B6477; --line:#D9DEE7;
+  --pass:#1F7A4D; --pass-bg:#E3F3EA; --fail:#B8342E; --fail-bg:#FBE7E5;
+  --accent:#2F4BA8; --accent-bg:#E6EBF8; --pending:#E4E8EF;
+  color-scheme:light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#121624; --surface:#1A2033; --ink:#E7EAF2; --muted:#9AA3B8; --line:#2C3550;
+    --pass:#4CC58A; --pass-bg:#173326; --fail:#F0726B; --fail-bg:#3A1C1C;
+    --accent:#8FA6F2; --accent-bg:#232E50; --pending:#273049;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#121624; --surface:#1A2033; --ink:#E7EAF2; --muted:#9AA3B8; --line:#2C3550;
+  --pass:#4CC58A; --pass-bg:#173326; --fail:#F0726B; --fail-bg:#3A1C1C;
+  --accent:#8FA6F2; --accent-bg:#232E50; --pending:#273049;
+  color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:16px;line-height:1.5}
+.wrap{max-width:760px;margin:0 auto;padding:24px 18px 48px}
+h1{font-size:clamp(1.6rem,4.5vw,2.3rem);line-height:1.15;margin:8px 0 10px;letter-spacing:-0.01em}
+h2{font-size:1.25rem;margin:0 0 12px}
+p{margin:0 0 12px}
+.muted{color:var(--muted)}
+button{font:inherit;cursor:pointer}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+
+/* Faixa de resultados: a "suíte" de 50 casos */
+.suite{display:grid;grid-template-columns:repeat(25,1fr);gap:3px;margin:14px 0 6px}
+.cell{aspect-ratio:1;border-radius:3px;background:var(--pending);border:0;padding:0;min-width:0}
+.cell.pass{background:var(--pass)}
+.cell.fail{background:var(--fail)}
+.cell.current{outline:2px solid var(--accent);outline-offset:1px}
+.cell[disabled]{cursor:default}
+@media (max-width:480px){.suite{grid-template-columns:repeat(10,1fr);gap:4px}}
+
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:20px}
+.home-meta{display:flex;flex-wrap:wrap;gap:18px;margin:18px 0}
+.home-meta div{min-width:120px}
+.home-meta strong{display:block;font-size:1.6rem}
+label.field{display:block;margin:14px 0 6px;font-weight:600}
+select{width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit}
+.check{display:flex;gap:10px;align-items:center;margin:14px 0}
+.check input{width:18px;height:18px}
+.btn{border:1px solid var(--accent);background:var(--accent);color:#fff;padding:11px 18px;border-radius:8px;font-weight:600}
+.btn.ghost{background:transparent;color:var(--accent)}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.row{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}
+
+/* Placar ao vivo */
+.score{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
+.score div{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.score span{display:block;font-size:.78rem;color:var(--muted)}
+.score b{font-size:1.15rem}
+.score .ok b{color:var(--pass)} .score .ko b{color:var(--fail)}
+@media (max-width:480px){.score{grid-template-columns:repeat(2,1fr)}}
+
+.qhead{display:flex;justify-content:space-between;gap:10px;align-items:baseline;flex-wrap:wrap;margin-bottom:10px}
+.topic{font-size:.85rem;color:var(--accent);background:var(--accent-bg);padding:3px 9px;border-radius:999px}
+.stmt{font-family:"Source Serif 4",Georgia,serif;font-size:1.08rem;line-height:1.65;white-space:pre-line;margin-bottom:18px}
+.opts{display:grid;gap:8px}
+.opt{display:flex;gap:12px;align-items:flex-start;text-align:left;width:100%;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:11px 12px;line-height:1.45}
+.opt:hover:not([disabled]){border-color:var(--accent)}
+.opt .l{flex:0 0 28px;height:28px;border-radius:6px;display:grid;place-items:center;font-weight:700;background:var(--pending)}
+.opt.right{border-color:var(--pass);background:var(--pass-bg)}
+.opt.right .l{background:var(--pass);color:#fff}
+.opt.wrong{border-color:var(--fail);background:var(--fail-bg)}
+.opt.wrong .l{background:var(--fail);color:#fff}
+.opt[disabled]{cursor:default}
+.feedback{margin-top:16px;padding:14px;border-radius:8px;border-left:4px solid var(--pass);background:var(--pass-bg)}
+.feedback.bad{border-left-color:var(--fail);background:var(--fail-bg)}
+.feedback b{display:block;margin-bottom:4px}
+.hint{font-size:.82rem;color:var(--muted);margin-top:14px}
+
+/* Resultado */
+.big{display:flex;gap:28px;flex-wrap:wrap;align-items:flex-end;margin:8px 0 18px}
+.big .n{font-size:clamp(2.6rem,9vw,4rem);font-weight:700;line-height:1}
+.big .ok .n{color:var(--pass)} .big .ko .n{color:var(--fail)}
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.92rem}
+th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--muted);font-weight:500}
+.bar{height:8px;border-radius:4px;background:var(--fail);overflow:hidden;min-width:80px}
+.bar i{display:block;height:100%;background:var(--pass)}
+.wrong-list{display:grid;gap:10px;margin-top:10px}
+.wrong-list details{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+.wrong-list summary{cursor:pointer;font-weight:600}
+.wrong-list p{margin:8px 0 0}
+.hidden{display:none!important}
+@media (prefers-reduced-motion:no-preference){.opt,.cell{transition:background-color .15s,border-color .15s}}
+</style>
+</head>
+<body>
+<main class="wrap">
+
+  <!-- INÍCIO -->
+  <section id="home">
+    <p class="muted">Revisão para a avaliação</p>
+    <h1>Engenharia de Requisitos, Qualidade e Testes de Software</h1>
+    <p>Cada questão tem cinco alternativas (A a E) e uma única correta. Ao responder, você vê na hora se acertou, a explicação e o seu percentual de acertos e erros.</p>
+    <div class="home-meta">
+      <div><strong id="hTotal">50</strong><span class="muted">questões</span></div>
+      <div><strong>11</strong><span class="muted">temas das aulas</span></div>
+    </div>
+    <div class="panel">
+      <label class="field" for="topicSel">Tema</label>
+      <select id="topicSel"></select>
+      <label class="check"><input type="checkbox" id="shuffle"> Embaralhar a ordem das questões</label>
+      <div class="row"><button class="btn" id="startBtn">Começar revisão</button></div>
+    </div>
+  </section>
+
+  <!-- QUESTÃO -->
+  <section id="quiz" class="hidden">
+    <div class="score">
+      <div><span>Respondidas</span><b id="sDone">0/0</b></div>
+      <div class="ok"><span>Acertos</span><b id="sOk">0 (0%)</b></div>
+      <div class="ko"><span>Erros</span><b id="sKo">0 (0%)</b></div>
+      <div><span>Restantes</span><b id="sLeft">0</b></div>
+    </div>
+    <div class="suite" id="suite" aria-label="Mapa das questões: verde acerto, vermelho erro"></div>
+    <div class="panel" style="margin-top:14px">
+      <div class="qhead">
+        <h2 id="qNum">Questão 1</h2>
+        <span class="topic" id="qTopic"></span>
+      </div>
+      <div class="stmt" id="qStmt"></div>
+      <div class="opts" id="qOpts"></div>
+      <div id="qFeed" class="hidden"></div>
+      <div class="row">
+        <button class="btn ghost" id="prevBtn">Anterior</button>
+        <button class="btn" id="nextBtn">Próxima</button>
+        <button class="btn ghost" id="finishBtn">Finalizar e ver resultado</button>
+      </div>
+      <p class="hint">Atalhos: teclas A–E para responder, seta → para avançar.</p>
+    </div>
+  </section>
+
+  <!-- RESULTADO -->
+  <section id="result" class="hidden">
+    <p class="muted">Resultado da revisão</p>
+    <h1 id="rTitle"></h1>
+    <div class="big">
+      <div class="ok"><div class="n" id="rOk">0%</div><span class="muted" id="rOkN"></span></div>
+      <div class="ko"><div class="n" id="rKo">0%</div><span class="muted" id="rKoN"></span></div>
+    </div>
+    <p id="rUnans" class="muted"></p>
+    <div class="suite" id="rSuite"></div>
+    <div class="panel" style="margin-top:16px">
+      <h2>Desempenho por tema</h2>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Tema</th><th>Acertos</th><th>%</th><th></th></tr></thead>
+        <tbody id="rTable"></tbody>
+      </table></div>
+    </div>
+    <div class="panel" style="margin-top:16px" id="rWrongWrap">
+      <h2>Questões que você errou</h2>
+      <div class="wrong-list" id="rWrong"></div>
+    </div>
+    <div class="row">
+      <button class="btn" id="retryWrongBtn">Refazer só as que errei</button>
+      <button class="btn ghost" id="restartBtn">Voltar ao início</button>
+    </div>
+  </section>
+</main>
+
+<script>
+const TOPICS = {
+  "1.1":"1.1 O Processo Holístico de Engenharia de Requisitos",
+  "1.2":"1.2 Técnicas de Elicitação, Descoberta e Priorização",
+  "1.3":"1.3 Especificação, Modelagem e Documentação Formal",
+  "2.1":"2.1 Os Atributos e a Psicologia da Qualidade Sistêmica",
+  "2.2":"2.2 Modelos de Maturidade e Melhoria de Processos",
+  "2.3":"2.3 Métricas, Estimativas e Monitoramento de Confiabilidade",
+  "3.1":"3.1 Arquitetura Conceitual e Psicologia do Processo de Testagem",
+  "3.2":"3.2 Níveis de Validação Estruturada e Arquitetura de Execução",
+  "3.3":"3.3 Técnicas Clássicas e Heurísticas de Desenho de Casos de Teste",
+  "4.1":"4.1 Testes Não Funcionais, Resiliência Física e Interação",
+  "4.2":"4.2 Orquestração de Testes Automatizados",
+  "4.3":"4.3 Inovação Algorítmica e IA na Qualidade"
+};
+
+/* a = índice da alternativa correta (0=A ... 4=E) */
+const QUESTIONS = [
+/* ---------- 1.1 ---------- */
+{t:"1.1",q:"O processo de Engenharia de Requisitos é composto por um conjunto de atividades que se repetem ao longo do projeto. Assinale a alternativa que apresenta corretamente essas atividades.",
+o:["Codificação, compilação, implantação e manutenção corretiva.",
+"Elicitação, análise e negociação, especificação, validação e gerenciamento de requisitos.",
+"Apenas especificação e validação, já que a elicitação é responsabilidade exclusiva do cliente.",
+"Planejamento da sprint, reunião diária, revisão e retrospectiva.",
+"Teste de unidade, teste de integração, teste de sistema e teste de aceitação."],a:1,
+e:"A Engenharia de Requisitos envolve descobrir (elicitação), analisar e negociar conflitos, documentar (especificação), confirmar com os stakeholders (validação) e controlar mudanças (gerenciamento). É um processo iterativo, não uma fase única."},
+{t:"1.1",q:"Em um sistema bancário, consta o requisito: “O sistema deve responder às consultas de saldo em até 2 segundos para 95% das requisições, com até 5.000 usuários simultâneos”.\n\nEsse requisito é classificado como:",
+o:["requisito funcional, pois descreve a operação de consulta de saldo.",
+"regra de negócio, pois trata de uma política do banco.",
+"requisito de domínio, sem relação com atributos de qualidade.",
+"requisito não funcional de desempenho, expresso de forma mensurável e verificável.",
+"restrição de projeto que, por ser técnica, dispensa verificação."],a:3,
+e:"O requisito não diz o que o sistema faz, e sim quão bem ele deve fazer: tempo de resposta e carga. Trata-se de um requisito não funcional de desempenho, e está bem escrito porque traz métricas que permitem testá-lo."},
+{t:"1.1",q:"Sobre a diferença entre validação e verificação de requisitos, assinale a alternativa correta.",
+o:["A validação confirma se os requisitos refletem as reais necessidades dos stakeholders (“estamos construindo o produto certo?”); a verificação checa se os artefatos estão consistentes e conformes à especificação (“estamos construindo o produto corretamente?”).",
+"A validação checa a conformidade técnica com a especificação, e a verificação confirma as necessidades reais do cliente.",
+"Validação e verificação são sinônimos e podem ser usadas indistintamente.",
+"A validação só pode ocorrer após a implantação do sistema em produção.",
+"A verificação é realizada exclusivamente pelo cliente, sem participação da equipe técnica."],a:0,
+e:"Clássica distinção de Boehm: validação = produto certo (atende à necessidade); verificação = produto feito corretamente (conforme a especificação). Ambas podem e devem ocorrer desde o início, por exemplo em revisões e inspeções de requisitos."},
+{t:"1.1",q:"Durante o desenvolvimento, o cliente solicita a alteração de um requisito de cálculo de impostos. A equipe precisa descobrir rapidamente quais módulos, casos de uso e casos de teste serão afetados.\n\nO recurso que melhor apoia essa análise é:",
+o:["o versionamento do código-fonte, que dispensa qualquer documentação de requisitos.",
+"a lista de nomes dos analistas responsáveis por cada requisito.",
+"o congelamento definitivo dos requisitos, impedindo qualquer mudança.",
+"o backlog do produto, que só existe em métodos ágeis.",
+"a matriz de rastreabilidade, que liga cada requisito à sua origem e aos artefatos derivados (design, código e testes), permitindo a análise de impacto."],a:4,
+e:"A rastreabilidade (para trás, até a origem, e para frente, até design, código e testes) é a base da análise de impacto no gerenciamento de mudanças de requisitos."},
+
+/* ---------- 1.2 ---------- */
+{t:"1.2",q:"Em uma rede de hospitais, os enfermeiros executam rotinas complexas que já fazem de forma automática e têm dificuldade em descrever em entrevistas. Grande parte do conhecimento é tácito.\n\nA técnica de elicitação mais indicada nesse contexto é:",
+o:["questionário fechado enviado por e-mail.",
+"brainstorming apenas com a equipe de desenvolvimento.",
+"observação em campo (etnografia), acompanhando o trabalho real dos usuários.",
+"análise exclusiva de documentos e manuais antigos.",
+"prototipação descartável feita sem a participação dos usuários."],a:2,
+e:"Conhecimento tácito é difícil de verbalizar. Observar o trabalho no ambiente real revela passos, exceções e improvisos que os usuários não lembram de mencionar."},
+{t:"1.2",q:"Na técnica de priorização MoSCoW, um requisito classificado como “Won’t have” (não terá) significa que ele:",
+o:["está proibido e nunca poderá ser implementado.",
+"foi acordado como fora do escopo desta entrega, podendo ser reconsiderado em versões futuras.",
+"é obrigatório e sem ele a entrega não tem valor.",
+"é desejável e será incluído se houver tempo sobrando.",
+"precisa ser reescrito antes de ser priorizado."],a:1,
+e:"MoSCoW: Must (obrigatório), Should (importante), Could (desejável) e Won’t (não nesta entrega). O “Won’t” deixa explícito o que fica de fora agora, gerenciando expectativas, sem descartar o requisito para sempre."},
+{t:"1.2",q:"Segundo o modelo Kano, uma funcionalidade cuja ausência não causa insatisfação, mas cuja presença surpreende e encanta o cliente, é classificada como:",
+o:["obrigatória (básica).",
+"unidimensional (de desempenho).",
+"indiferente.",
+"atrativa (encantadora).",
+"reversa."],a:3,
+e:"No modelo Kano, os atributos atrativos não são esperados pelo cliente; por isso, não fazem falta quando ausentes, mas geram grande satisfação quando presentes. Com o tempo, tendem a virar básicos."},
+{t:"1.2",q:"Sobre o uso de protótipos na descoberta de requisitos, assinale a alternativa correta.",
+o:["Protótipos de baixa fidelidade (esboços, wireframes) permitem que os usuários reajam a algo concreto, revelando requisitos e ambiguidades cedo e a baixo custo.",
+"Protótipos devem sempre ser de alta fidelidade e reaproveitados integralmente como código de produção.",
+"Protótipos substituem completamente a especificação de requisitos.",
+"Protótipos só devem ser apresentados depois que o sistema estiver totalmente codificado.",
+"Protótipos não são uma técnica de elicitação, mas apenas de teste de desempenho."],a:0,
+e:"Usuários têm mais facilidade em criticar algo que veem do que descrever o que querem. Protótipos rápidos e baratos expõem mal-entendidos antes que virem código."},
+
+/* ---------- 1.3 ---------- */
+{t:"1.3",q:"Considere o requisito: “O sistema deve ser rápido e fácil de usar”.\n\nDe acordo com as características de um bom requisito (como as da norma ISO/IEC/IEEE 29148), esse requisito é problemático principalmente porque:",
+o:["é curto demais, e requisitos devem ter no mínimo um parágrafo.",
+"não informa a linguagem de programação a ser usada.",
+"deveria estar escrito na forma de diagrama UML.",
+"trata de mais de um usuário ao mesmo tempo.",
+"é ambíguo e não verificável, pois “rápido” e “fácil” não têm critérios mensuráveis."],a:4,
+e:"Bons requisitos são não ambíguos, verificáveis, completos, consistentes e rastreáveis. Termos vagos como “rápido” e “fácil” devem virar métricas, por exemplo tempo de resposta ou taxa de conclusão de tarefas."},
+{t:"1.3",q:"No acrônimo INVEST, usado para avaliar a qualidade de histórias de usuário, as letras significam:",
+o:["Integrada, Nova, Visual, Extensa, Segura e Técnica.",
+"Inicial, Negociada, Validada, Entregue, Simples e Terminada.",
+"Independente, Negociável, Valiosa, Estimável, Pequena (Small) e Testável.",
+"Iterativa, Normativa, Versionada, Executável, Sólida e Tangível.",
+"Implementável, Necessária, Viável, Específica, Sistêmica e Traçável."],a:2,
+e:"INVEST (Bill Wake): a história deve ser Independente, Negociável, Valiosa para o usuário, Estimável, Pequena o bastante para caber numa iteração e Testável."},
+{t:"1.3",q:"Em um diagrama de casos de uso da UML, sobre os relacionamentos «include» e «extend», é correto afirmar que:",
+o:["ambos representam herança entre atores.",
+"«include» indica um comportamento obrigatório, sempre incorporado ao caso base; «extend» indica um comportamento opcional ou condicional, que ocorre apenas em determinadas situações.",
+"«include» é opcional e «extend» é obrigatório.",
+"são equivalentes e podem ser usados indistintamente.",
+"só podem ser usados entre atores, nunca entre casos de uso."],a:1,
+e:"Exemplo: “Realizar compra” «include» “Autenticar usuário” (sempre acontece); “Aplicar cupom” «extend» “Realizar compra” (só acontece se houver cupom)."},
+{t:"1.3",q:"Uma equipe ágil escreve critérios de aceitação em linguagem Gherkin, usada no BDD. A estrutura correta de um cenário é:",
+o:["Início / Meio / Fim, descrevendo apenas o fluxo de telas.",
+"Entrada / Processamento / Saída, sem relação com o comportamento esperado.",
+"Requisito / Código / Teste, ligando cada linha ao código-fonte.",
+"Dado (contexto inicial) / Quando (ação ou evento) / Então (resultado esperado).",
+"Se / Senão / Fim-se, como em uma estrutura condicional de programação."],a:3,
+e:"Given–When–Then: “Dado que o carrinho tem R$ 200,00 / Quando finalizo a compra / Então o frete deve ser gratuito”. Isso torna o critério legível pelo negócio e automatizável."},
+
+/* ---------- 2.1 ---------- */
+{t:"2.1",q:"No modelo de qualidade de produto da ISO/IEC 25010, a capacidade de um sistema continuar operando como esperado mesmo quando um de seus componentes falha corresponde à subcaracterística:",
+o:["tolerância a falhas, ligada à característica Confiabilidade.",
+"apreensibilidade, ligada à característica Usabilidade.",
+"modificabilidade, ligada à característica Manutenibilidade.",
+"comportamento em relação ao tempo, ligado à característica Eficiência de desempenho.",
+"coexistência, ligada à característica Compatibilidade."],a:0,
+e:"Confiabilidade engloba maturidade, disponibilidade, tolerância a falhas e recuperabilidade. Tolerância a falhas é justamente manter o funcionamento apesar de falhas de hardware ou software."},
+{t:"2.1",q:"David Garvin descreve diferentes perspectivas de qualidade. A visão de que “qualidade é a conformidade com a especificação”, em que um produto bom é aquele construído exatamente como especificado, corresponde à perspectiva:",
+o:["transcendental, em que a qualidade é reconhecida mas não definida.",
+"do usuário, em que a qualidade é adequação ao uso.",
+"de manufatura (produção), baseada na conformidade com requisitos e especificações.",
+"do valor, em que a qualidade depende do preço que o cliente aceita pagar.",
+"estética, baseada apenas na aparência do produto."],a:2,
+e:"As perspectivas de Garvin são: transcendental, do usuário, de manufatura, do produto e do valor. A de manufatura mede qualidade pela conformidade ao especificado e pelo “fazer certo da primeira vez”."},
+{t:"2.1",q:"Um defeito no cálculo de juros só foi descoberto depois que centenas de clientes receberam boletos errados, gerando estornos, multas contratuais e dano à reputação.\n\nNo modelo de Custo da Qualidade, esses gastos são classificados como custos de:",
+o:["prevenção.",
+"avaliação.",
+"falhas internas.",
+"treinamento.",
+"falhas externas."],a:4,
+e:"Custos de falhas externas surgem após a entrega ao cliente e costumam ser os mais caros. Investir em prevenção e avaliação reduz esses custos."},
+{t:"2.1",q:"Sobre a diferença entre Garantia da Qualidade (QA) e Controle da Qualidade (QC), assinale a alternativa correta.",
+o:["São a mesma atividade com nomes diferentes.",
+"QA é orientada ao processo e busca prevenir defeitos; QC é orientado ao produto e busca detectar defeitos, por exemplo por meio de testes e inspeções.",
+"QA é feita apenas pelo cliente e QC apenas pelos desenvolvedores.",
+"QC trata da melhoria contínua dos processos, e QA consiste apenas em executar testes.",
+"QA só existe em empresas certificadas em CMMI nível 5."],a:1,
+e:"QA atua no “como fazemos” (padrões, auditorias, melhoria de processo) para evitar defeitos. QC atua no “o que fizemos” (testes, revisões) para encontrá-los. Ambos se complementam."},
+
+/* ---------- 2.2 ---------- */
+{t:"2.2",q:"No CMMI (representação por estágios), o nível de maturidade em que os processos são padronizados e documentados para toda a organização, e cada projeto adapta esse processo padrão, é o nível:",
+o:["1 – Inicial.",
+"2 – Gerenciado.",
+"4 – Quantitativamente gerenciado.",
+"3 – Definido.",
+"5 – Em otimização."],a:3,
+e:"No nível 2 os processos são gerenciados por projeto; no 3 passam a ser definidos e padronizados para a organização; no 4 são controlados estatisticamente; no 5 há melhoria contínua."},
+{t:"2.2",q:"Sobre o modelo MPS.BR (Melhoria de Processo do Software Brasileiro), assinale a alternativa correta.",
+o:["É um modelo brasileiro, compatível com o CMMI, que organiza a maturidade em sete níveis, de G (parcialmente gerenciado) até A (em otimização), facilitando a adoção gradual por pequenas e médias empresas.",
+"É uma norma internacional que substitui a ISO 9001.",
+"Possui apenas dois níveis: aprovado e reprovado.",
+"Seus níveis vão de A (mais baixo) até G (mais alto).",
+"É exclusivo para órgãos públicos e não pode ser aplicado a empresas privadas."],a:0,
+e:"O MPS.BR tem sete níveis (G, F, E, D, C, B, A), com degraus menores que o CMMI. Isso torna a melhoria mais acessível para empresas menores."},
+{t:"2.2",q:"O ciclo PDCA, base de muitas abordagens de melhoria contínua de processos, é composto pelas etapas:",
+o:["Programar, Depurar, Compilar e Arquivar.",
+"Planejar, Desenvolver, Codificar e Aprovar.",
+"Prevenir, Detectar, Corrigir e Auditar.",
+"Projetar, Documentar, Certificar e Arquivar.",
+"Planejar (Plan), Executar (Do), Verificar (Check) e Agir (Act)."],a:4,
+e:"Planeja-se a melhoria, executa-se em pequena escala, verificam-se os resultados com dados e age-se padronizando o que funcionou ou corrigindo o rumo. Depois o ciclo recomeça."},
+{t:"2.2",q:"Sobre as duas representações do CMMI, contínua e por estágios, é correto afirmar que:",
+o:["a representação contínua avalia a organização como um todo, e a por estágios avalia cada área isoladamente.",
+"ambas usam exatamente o mesmo conceito de nível e são intercambiáveis.",
+"a representação contínua atribui níveis de capacidade a cada área de processo individualmente, enquanto a por estágios atribui um nível de maturidade à organização.",
+"a representação por estágios dispensa áreas de processo.",
+"a representação contínua só se aplica a métodos ágeis."],a:2,
+e:"Contínua → níveis de capacidade por área de processo (a empresa escolhe onde melhorar). Por estágios → níveis de maturidade da organização, com conjuntos predefinidos de áreas por nível."},
+
+/* ---------- 2.3 ---------- */
+{t:"2.3",q:"Um serviço apresenta tempo médio até a falha (MTTF) de 990 horas e tempo médio de reparo (MTTR) de 10 horas.\n\nConsiderando Disponibilidade = MTTF / (MTTF + MTTR), a disponibilidade do serviço é de:",
+o:["90%.",
+"99%.",
+"99,9%.",
+"98%.",
+"100%, pois o MTTR é pequeno."],a:1,
+e:"990 / (990 + 10) = 990 / 1000 = 0,99, ou seja, 99%. Reduzir o MTTR (recuperar mais rápido) aumenta a disponibilidade tanto quanto aumentar o MTTF."},
+{t:"2.3",q:"Sobre a Análise de Pontos de Função (APF), assinale a alternativa correta.",
+o:["Mede o tamanho do software pelo número de linhas de código.",
+"Só pode ser aplicada depois que o sistema está pronto.",
+"Mede o tempo de resposta do sistema em produção.",
+"Mede o tamanho funcional do software sob a perspectiva do usuário, independentemente da tecnologia, servindo de base para estimativas de esforço, prazo e custo.",
+"Depende da linguagem de programação, pois cada linguagem gera pontos diferentes."],a:3,
+e:"A APF conta funções de dados (ALI, AIE) e transações (EE, SE, CE) vistas pelo usuário. Por independer da tecnologia, pode ser usada cedo, a partir dos requisitos."},
+{t:"2.3",q:"Um módulo com 15.000 linhas de código (15 KLOC) teve 30 defeitos registrados no último ciclo de testes.\n\nA densidade de defeitos desse módulo é de:",
+o:["2 defeitos por KLOC.",
+"0,5 defeito por KLOC.",
+"30 defeitos por KLOC.",
+"450 defeitos por KLOC.",
+"15 defeitos por KLOC."],a:0,
+e:"Densidade = defeitos / tamanho = 30 / 15 KLOC = 2 defeitos/KLOC. A métrica permite comparar módulos de tamanhos diferentes e apontar onde concentrar esforço."},
+{t:"2.3",q:"A abordagem GQM (Goal–Question–Metric), usada para definir programas de medição, recomenda:",
+o:["coletar o máximo possível de métricas e só depois decidir para que servem.",
+"usar apenas métricas de linhas de código.",
+"definir métricas a partir das ferramentas disponíveis na empresa.",
+"medir somente a produtividade individual dos desenvolvedores.",
+"partir de objetivos (Goals), derivar perguntas (Questions) que indiquem se o objetivo é atingido e, então, escolher métricas (Metrics) que respondam a essas perguntas."],a:4,
+e:"O GQM evita “medir por medir”: toda métrica deve responder a uma pergunta ligada a um objetivo de negócio ou de qualidade."},
+
+/* ---------- 3.1 ---------- */
+{t:"3.1",q:"Durante o levantamento de requisitos de um e-commerce, a regra informava que o frete grátis valeria para compras “a partir de R$ 200,00”. O desenvolvedor entendeu “acima de R$ 200,00” e implementou a condição valor > 200. Meses depois, um cliente que comprou exatamente R$ 200,00 foi cobrado pelo frete e abriu uma reclamação.\n\nConsiderando a cadeia causal estudada, assinale a alternativa que classifica corretamente cada elemento do cenário.",
+o:["A interpretação equivocada é um defeito; a condição valor > 200 é uma falha; a cobrança indevida é um erro.",
+"A interpretação equivocada é uma falha; a condição valor > 200 é um erro; a cobrança indevida é um defeito.",
+"A interpretação equivocada é um erro (engano humano); a condição valor > 200 é um defeito; a cobrança indevida observada pelo cliente é uma falha.",
+"Todos os elementos são falhas, pois só existe defeito quando o problema é encontrado pela equipe de testes.",
+"A interpretação equivocada é um erro; a condição valor > 200 é uma falha; a cobrança indevida é um incidente que não se relaciona ao defeito."],a:2,
+e:"Cadeia causal: erro (engano humano) → defeito (bug no artefato, aqui a condição > em vez de >=) → falha (comportamento incorreto observado na execução, a cobrança indevida)."},
+{t:"3.1",q:"Analise as afirmativas a seguir sobre os princípios do teste e os aspectos psicológicos envolvidos na atividade:\n\nI. O teste pode demonstrar a presença de defeitos, mas não é capaz de provar a sua ausência.\nII. Executar repetidamente o mesmo conjunto de testes, sem alterações, tende a aumentar a quantidade de novos defeitos encontrados, já que o software se torna cada vez mais estável.\nIII. O viés de confirmação leva o autor de um artefato a buscar evidências de que ele funciona, o que justifica a adoção de algum grau de independência na atividade de teste.\nIV. Relatar defeitos com linguagem neutra e factual, focada no produto e não em quem o produziu, reduz conflitos e favorece a colaboração entre testadores e desenvolvedores.\n\nEstá correto o que se afirma em:",
+o:["I e II, apenas.","II e IV, apenas.","I, II e III, apenas.","I, III e IV, apenas.","I, II, III e IV."],a:3,
+e:"A II está errada: é o “paradoxo do pesticida”. Repetir os mesmos testes faz com que deixem de encontrar novos defeitos; os testes precisam ser revisados e renovados. I, III e IV estão corretas."},
+{t:"3.1",q:"Um formulário possui 10 campos, e cada campo aceita 100 valores diferentes. Testar todas as combinações exigiria 100¹⁰ (10²⁰) casos de teste.\n\nO princípio do teste que essa situação ilustra, e a conduta recomendada, são:",
+o:["“ausência de erros é uma ilusão”; deve-se testar todas as combinações para garantir zero defeitos.",
+"“agrupamento de defeitos”; deve-se testar apenas o primeiro campo.",
+"“testes exaustivos são impossíveis”; deve-se usar análise de risco, técnicas de teste e priorização para escolher um subconjunto representativo.",
+"“teste antecipado”; deve-se adiar os testes até o fim do projeto.",
+"“o teste depende do contexto”; deve-se ignorar os campos menos usados sem qualquer critério."],a:2,
+e:"Como testar tudo é inviável (salvo casos triviais), escolhemos o que testar com base em risco e em técnicas como partição de equivalência, valor limite e testes combinatórios (pairwise)."},
+{t:"3.1",q:"Uma equipe passou a realizar revisões dos documentos de requisitos e dos critérios de aceitação logo no início do projeto, antes de qualquer linha de código ser escrita.\n\nEssa prática está alinhada ao princípio:",
+o:["do paradoxo do pesticida, que recomenda repetir os mesmos testes.",
+"do teste antecipado (shift-left), pois encontrar defeitos cedo reduz o custo e o retrabalho de corrigi-los.",
+"da ausência de erros, que garante que o software atenderá ao usuário.",
+"do agrupamento de defeitos, que concentra os testes no código legado.",
+"da independência total, que proíbe o desenvolvedor de revisar requisitos."],a:1,
+e:"Shift-left: antecipar atividades de teste, incluindo testes estáticos como revisões. Um defeito de requisito corrigido no papel custa muito menos do que depois de codificado e implantado."},
+{t:"3.1",q:"Após analisar o histórico de bugs, uma equipe percebeu que cerca de 80% dos defeitos estavam concentrados em apenas 3 dos 40 módulos do sistema.\n\nEsse fenômeno corresponde ao princípio:",
+o:["do teste exaustivo.",
+"da dependência de contexto.",
+"do paradoxo do pesticida.",
+"da ausência de erros.",
+"do agrupamento de defeitos (defect clustering), que orienta a concentração de esforço de teste nos módulos de maior risco."],a:4,
+e:"Os defeitos tendem a se agrupar em poucos módulos (semelhante ao princípio de Pareto). Essa informação ajuda a direcionar os testes baseados em risco."},
+
+/* ---------- 3.2 ---------- */
+{t:"3.2",q:"Uma equipe adota a estratégia de integração incremental top-down (descendente). O módulo de nível superior Pedido já está pronto e precisa chamar o módulo Pagamento, que ainda está em desenvolvimento.\n\nPara testar a integração do módulo Pedido nesse momento, a equipe deve:",
+o:["criar um driver que substitua o módulo Pagamento e devolva respostas predefinidas.",
+"criar um stub que simule o módulo Pagamento, devolvendo respostas controladas às chamadas feitas por Pedido.",
+"aguardar a conclusão do módulo Pagamento, pois a integração top-down não admite componentes simulados.",
+"executar diretamente o teste de aceitação com o usuário, que dispensa a integração entre módulos.",
+"criar um driver para chamar o módulo Pedido, já que em abordagens top-down os módulos inferiores são testados primeiro."],a:1,
+e:"Stub substitui um módulo chamado (inferior), ainda não pronto: típico do top-down. Driver substitui um módulo chamador (superior): típico do bottom-up."},
+{t:"3.2",q:"Relacione cada nível de teste (coluna 1) ao seu objetivo principal (coluna 2).\n\n(1) Teste de unidade/componente\n(2) Teste de integração\n(3) Teste de sistema\n(4) Teste de aceitação\n\n( ) Avalia o produto completo, de ponta a ponta, contra a especificação, em ambiente o mais próximo possível do de produção.\n( ) Verifica partes isoladas do código, em geral pelo próprio desenvolvedor, com dependências externas substituídas.\n( ) Busca confirmar, com usuários ou cliente, se o sistema atende às necessidades do negócio e está apto para uso.\n( ) Concentra-se nas interfaces e na troca de dados entre componentes ou sistemas.\n\nA sequência correta, de cima para baixo, é:",
+o:["1, 3, 4, 2.","3, 2, 4, 1.","4, 1, 3, 2.","2, 1, 4, 3.","3, 1, 4, 2."],a:4,
+e:"Sistema (3) avalia ponta a ponta; unidade (1) testa partes isoladas; aceitação (4) confirma com o negócio; integração (2) foca nas interfaces. Sequência: 3, 1, 4, 2."},
+{t:"3.2",q:"Uma empresa de software convida usuários selecionados para testar uma nova versão dentro das suas próprias instalações, com a equipe de desenvolvimento acompanhando. Semanas depois, libera a versão para um grupo de clientes usar em seus próprios ambientes e enviar feedback.\n\nEssas duas etapas correspondem, respectivamente, a:",
+o:["teste alfa e teste beta.",
+"teste beta e teste alfa.",
+"teste de unidade e teste de integração.",
+"teste de regressão e teste de confirmação.",
+"teste de carga e teste de estresse."],a:0,
+e:"Alfa: no ambiente do desenvolvedor, com usuários ou representantes. Beta: no ambiente real dos clientes, sem a presença da equipe. Ambos são formas de teste de aceitação."},
+{t:"3.2",q:"Um defeito no cálculo do frete foi corrigido. O testador executa novamente o caso que havia falhado e, em seguida, executa testes em funcionalidades relacionadas (carrinho, checkout, cupons) para garantir que nada mais foi quebrado.\n\nEssas atividades são, respectivamente:",
+o:["teste de regressão e teste de fumaça.",
+"teste exploratório e teste de aceitação.",
+"teste de confirmação (reteste) e teste de regressão.",
+"teste de regressão e teste de confirmação.",
+"teste de sistema e teste de unidade."],a:2,
+e:"Reteste (confirmação) verifica se o defeito foi realmente corrigido. Regressão verifica se a mudança introduziu efeitos colaterais em partes que já funcionavam."},
+{t:"3.2",q:"Sobre a pirâmide de testes, proposta por Mike Cohn, é correto afirmar que:",
+o:["a maior parte dos testes deve ser de interface (E2E), pois eles simulam o usuário real.",
+"todos os níveis devem ter a mesma quantidade de testes.",
+"testes de unidade devem ficar no topo, por serem os mais caros.",
+"a base deve ter muitos testes de unidade, rápidos e baratos; o meio, testes de serviço/integração; e o topo, poucos testes de ponta a ponta, mais lentos e frágeis.",
+"a pirâmide só se aplica a sistemas sem interface gráfica."],a:3,
+e:"Quanto mais alto na pirâmide, mais lento, caro e frágil é o teste. A forma invertida (“casquinha de sorvete”), com muitos testes de UI, gera suítes lentas e instáveis."},
+
+/* ---------- 3.3 ---------- */
+{t:"3.3",q:"O campo “idade” de um formulário de cadastro de seguro aceita apenas valores inteiros entre 18 e 65, inclusive. Valores fora desse intervalo devem ser rejeitados.\n\nAplicando a Análise de Valor Limite na sua versão de dois valores (2-value BVA), o conjunto mínimo de valores de teste que cobre todos os limites é:",
+o:["17, 18, 65 e 66.","18 e 65.","17, 18, 19, 64, 65 e 66.","0, 18, 65 e 100.","17, 40 e 66."],a:0,
+e:"Na BVA de 2 valores, testa-se o limite e o vizinho imediato do outro lado: 17/18 (limite inferior) e 65/66 (limite superior). A versão de 3 valores incluiria também 19 e 64."},
+{t:"3.3",q:"Para o mesmo campo “idade”, que aceita inteiros de 18 a 65, deseja-se aplicar o Particionamento de Equivalência considerando apenas valores numéricos inteiros.\n\nO número mínimo de casos de teste para cobrir todas as partições é:",
+o:["2, um válido e um inválido.",
+"3, um da partição inválida abaixo de 18, um da partição válida (18 a 65) e um da partição inválida acima de 65.",
+"48, um para cada idade válida.",
+"1, pois todas as idades pertencem à mesma partição.",
+"6, dois para cada partição."],a:1,
+e:"Há três partições: < 18 (inválida), 18–65 (válida) e > 65 (inválida). Como todos os valores de uma partição devem se comportar igual, basta um representante de cada, por exemplo 10, 40 e 70."},
+{t:"3.3",q:"A regra de desconto de uma loja depende de três condições booleanas independentes: (a) o cliente é VIP; (b) a compra supera R$ 500,00; (c) o cliente apresentou cupom promocional. A especificação descreve explicitamente apenas quatro situações.\n\nAo modelar essa regra com uma tabela de decisão completa, é correto afirmar que:",
+o:["a tabela terá 3 regras, uma para cada condição, e cada caso de teste deve variar uma única condição.",
+"a tabela terá 6 regras, pois combinações em que todas as condições são verdadeiras são descartadas por padrão.",
+"a tabela terá 8 regras (2³), e as 4 combinações não descritas na especificação revelam lacunas que devem ser esclarecidas com o negócio.",
+"a tabela terá 4 regras, já que a técnica cobre somente as situações descritas na especificação.",
+"a tabela de decisão não se aplica, pois só é indicada para sistemas com estados e transições."],a:2,
+e:"Com n condições booleanas, a tabela completa tem 2ⁿ regras: 2³ = 8. Uma grande vantagem da técnica é expor combinações não especificadas."},
+{t:"3.3",q:"Um cartão de banco é bloqueado após três tentativas consecutivas de senha incorreta; uma senha correta antes disso zera o contador. O comportamento do sistema depende do histórico de eventos anteriores.\n\nA técnica de desenho de testes mais adequada é:",
+o:["análise de valor limite, aplicada apenas ao tamanho da senha.",
+"particionamento de equivalência, sem considerar a sequência de eventos.",
+"teste de pares (pairwise), combinando bancos e bandeiras.",
+"suposição de erro (error guessing), sem nenhum modelo.",
+"teste de transição de estados, modelando estados (ativo, 1ª e 2ª falha, bloqueado), eventos e transições válidas e inválidas."],a:4,
+e:"Quando a resposta a um evento depende do estado atual (memória do sistema), o modelo de estados e transições é a técnica natural. Cobrir todas as transições válidas e testar as inválidas é um critério comum."},
+{t:"3.3",q:"Sobre as técnicas de teste caixa-branca, considere a cobertura de comandos (statement coverage) e a cobertura de decisão (decision/branch coverage).\n\nÉ correto afirmar que:",
+o:["atingir 100% de cobertura de decisão garante 100% de cobertura de comandos, mas o inverso não é verdadeiro.",
+"atingir 100% de cobertura de comandos garante 100% de cobertura de decisão.",
+"as duas coberturas são sempre iguais.",
+"cobertura de decisão é uma técnica caixa-preta baseada na especificação.",
+"100% de cobertura de comandos garante que o software não possui defeitos."],a:0,
+e:"Exemplo: um “if” sem “else”. Um único teste com condição verdadeira executa todos os comandos (100% de comandos), mas não testa o desvio falso (50% de decisão). Cobrir as decisões cobre também os comandos."},
+
+/* ---------- 4.1 ---------- */
+{t:"4.1",q:"Preparando-se para a Black Friday, a equipe de um e-commerce aumenta progressivamente o número de usuários virtuais muito além da capacidade prevista, até que o sistema comece a degradar e falhar. O objetivo é descobrir o ponto de ruptura, observar como o sistema falha e verificar se ele se recupera quando a carga diminui.\n\nEsse tipo de teste é denominado:",
+o:["teste de carga, pois mede o comportamento sob a carga esperada de produção.",
+"teste de estresse, pois leva o sistema além dos seus limites para avaliar o comportamento na ruptura e a recuperação.",
+"teste de resistência (soak), pois mantém uma carga constante por longos períodos para detectar vazamentos de memória.",
+"teste de usabilidade, pois avalia a experiência de muitos usuários simultâneos.",
+"teste de regressão, pois repete os cenários de teste após cada aumento de carga."],a:1,
+e:"Carga = volume esperado. Estresse = além do limite, buscando o ponto de ruptura e a recuperação. Soak = carga moderada por longo período. Pico (spike) = aumentos bruscos."},
+{t:"4.1",q:"Sobre a Engenharia do Caos (Chaos Engineering) como prática de teste de resiliência, assinale a alternativa correta.",
+o:["Consiste em injetar falhas aleatórias em produção sem planejamento, pois a imprevisibilidade é o que torna o experimento válido.",
+"Substitui os testes de desempenho, já que derrubar servidores mede automaticamente o tempo de resposta.",
+"Seu objetivo é provar que o sistema é livre de defeitos, eliminando a necessidade de monitoramento em produção.",
+"Parte de uma hipótese sobre o “estado estável” do sistema, injeta falhas controladas (como queda de instâncias ou latência de rede) com raio de impacto limitado e verifica se esse estado se mantém.",
+"Só pode ser aplicada a sistemas monolíticos, pois em microsserviços a falha de um componente nunca afeta os demais."],a:3,
+e:"Engenharia do Caos é experimentação disciplinada: hipótese de estado estável, injeção controlada de falhas, raio de impacto (blast radius) limitado e observação com monitoramento."},
+{t:"4.1",q:"Um sistema funciona bem nas primeiras horas, mas, após 12 horas contínuas com carga moderada e constante, o tempo de resposta cresce gradualmente até o servidor travar por falta de memória.\n\nO tipo de teste que detecta esse problema é o teste de:",
+o:["estresse, aumentando a carga até a ruptura em poucos minutos.",
+"pico (spike), com aumentos repentinos de usuários.",
+"resistência (soak/endurance), mantendo carga sustentada por longos períodos para revelar vazamentos de memória e degradação gradual.",
+"usabilidade, com entrevistas aos usuários.",
+"unidade, executado pelo desenvolvedor em cada função."],a:2,
+e:"Vazamentos de memória, conexões não liberadas e crescimento de logs só aparecem com o tempo. O teste de resistência roda por horas ou dias para revelá-los."},
+{t:"4.1",q:"Uma equipe pede a três especialistas em UX que inspecionem a interface de um aplicativo à luz de princípios reconhecidos, como “visibilidade do status do sistema”, “consistência e padrões” e “prevenção de erros”, sem envolver usuários finais.\n\nEssa técnica é chamada de:",
+o:["teste A/B.",
+"avaliação heurística, baseada nas heurísticas de usabilidade de Nielsen.",
+"teste de carga de interface.",
+"teste de aceitação do usuário.",
+"teste de mutação de interface."],a:1,
+e:"A avaliação heurística é uma inspeção feita por especialistas, rápida e barata, usando as 10 heurísticas de Nielsen. Complementa, mas não substitui, testes com usuários reais."},
+{t:"4.1",q:"As diretrizes de acessibilidade WCAG organizam seus critérios em quatro princípios. Esses princípios são:",
+o:["Rápido, Seguro, Bonito e Barato.",
+"Funcional, Confiável, Eficiente e Portável.",
+"Planejar, Executar, Verificar e Agir.",
+"Visual, Sonoro, Tátil e Motor.",
+"Perceptível, Operável, Compreensível e Robusto (POUR)."],a:4,
+e:"POUR: o conteúdo deve ser perceptível (ex.: texto alternativo em imagens), operável (ex.: navegação por teclado), compreensível e robusto o bastante para funcionar com tecnologias assistivas."},
+
+/* ---------- 4.2 ---------- */
+{t:"4.2",q:"Em um pipeline de integração contínua, um teste de interface falha de forma intermitente: em algumas execuções passa e, em outras, falha sem qualquer alteração no código. A análise mostrou que o script usa uma espera fixa (sleep de 2 segundos) antes de clicar em um botão carregado de forma assíncrona.\n\nA conduta mais adequada é:",
+o:["substituir a espera fixa por uma espera explícita condicionada ao estado do elemento e, enquanto a correção não é feita, isolar o teste em quarentena para não bloquear o pipeline sem esconder o problema.",
+"aumentar o sleep para 30 segundos, garantindo que o elemento sempre esteja disponível.",
+"configurar o pipeline para repetir o teste até 10 vezes e considerá-lo aprovado se passar ao menos uma vez, sem investigar a causa.",
+"remover definitivamente o teste da suíte, já que testes de interface são, por natureza, instáveis.",
+"mover todos os testes para execução apenas noturna, pois a instabilidade ocorre somente em horário comercial."],a:0,
+e:"Testes flaky corroem a confiança na suíte. A causa (espera fixa) deve ser corrigida com esperas explícitas; a quarentena é medida temporária e visível, não uma forma de esconder o problema."},
+{t:"4.2",q:"Em uma suíte de testes de interface, os mesmos localizadores e ações (preencher login, clicar em “Entrar”) estão repetidos em dezenas de scripts. Quando a tela muda, é preciso alterar todos eles.\n\nO padrão de projeto que resolve esse problema é:",
+o:["o Page Object Model (POM), que encapsula os elementos e as ações de cada página em uma classe reutilizada pelos testes, centralizando a manutenção.",
+"o Singleton, que impede a criação de mais de um teste.",
+"a gravação e reprodução (record & playback) de todos os testes novamente a cada mudança.",
+"a remoção dos localizadores, deixando a ferramenta adivinhar os elementos.",
+"o teste exploratório, que dispensa scripts."],a:0,
+e:"Com o POM, se o botão “Entrar” mudar, altera-se um único lugar (a classe da página) e todos os testes continuam funcionando. Os testes ficam mais legíveis e fáceis de manter."},
+{t:"4.2",q:"Ao estruturar os estágios de testes em um pipeline de CI/CD, a ordem mais adequada, seguindo o princípio de feedback rápido (fail fast), é:",
+o:["testes de ponta a ponta primeiro, depois integração e por último unidade.",
+"todos os testes em um único estágio, sem ordem definida.",
+"apenas testes manuais antes do deploy em produção.",
+"análise estática e testes de unidade primeiro, depois testes de integração/API e, por último, os testes de ponta a ponta, mais lentos.",
+"testes de desempenho antes da compilação do código."],a:3,
+e:"Os testes mais rápidos e baratos rodam primeiro. Se falharem, o pipeline para em segundos, poupando tempo e recursos antes de executar os testes lentos de ponta a ponta."},
+
+/* ---------- 4.3 ---------- */
+{t:"4.3",q:"Uma equipe passou a usar um modelo de linguagem (LLM) para gerar automaticamente testes unitários a partir do código-fonte existente. Sobre essa prática, assinale a alternativa correta.",
+o:["Testes gerados por IA dispensam revisão humana, pois o modelo conhece a especificação do negócio a partir do código.",
+"Como a IA gera grande volume de testes, a cobertura de código alcançada garante a ausência de defeitos.",
+"Mecanismos de self-healing de localizadores eliminam qualquer possibilidade de falso positivo ou falso negativo nos testes.",
+"O teste de mutação é uma técnica de IA que gera código de produção novo a partir dos testes existentes.",
+"Há o risco de o modelo derivar o resultado esperado do próprio comportamento atual do código, incorporando defeitos às asserções como se fossem corretos; por isso, os oráculos de teste precisam ser validados por pessoas que conhecem o negócio."],a:4,
+e:"Se o código tem um bug, um teste gerado a partir dele tende a “congelar” o bug como esperado. O oráculo (resultado esperado) precisa vir da especificação e ser validado por humanos."},
+{t:"4.3",q:"Sobre o teste de mutação (mutation testing), assinale a alternativa correta.",
+o:["É uma técnica que gera dados aleatórios de entrada para encontrar travamentos.",
+"Consiste em alterar os requisitos para verificar se o cliente percebe a mudança.",
+"Introduz pequenas alterações artificiais no código (mutantes, como trocar > por >=) e verifica se a suíte de testes detecta cada uma; mutantes que “sobrevivem” indicam testes fracos ou asserções ausentes.",
+"Mede apenas a cobertura de linhas do código.",
+"É usado para gerar automaticamente o código de produção a partir dos testes."],a:2,
+e:"O escore de mutação (mutantes mortos / total) avalia a qualidade da suíte de testes, e não do código. Alta cobertura de linhas com baixo escore de mutação revela testes sem asserções eficazes."},
+{t:"4.3",q:"Uma suíte de regressão leva 6 horas para executar. A equipe adota um modelo de aprendizado de máquina que analisa os arquivos alterados em cada commit e o histórico de falhas para decidir quais testes executar primeiro.\n\nEssa aplicação de IA na qualidade é conhecida como:",
+o:["geração de dados sintéticos para testes de carga.",
+"seleção e priorização inteligente de testes (análise de impacto), que antecipa o feedback ao executar primeiro os testes com maior probabilidade de falhar.",
+"self-healing de localizadores de interface.",
+"teste de mutação automatizado.",
+"substituição completa dos testes de regressão por monitoramento em produção."],a:1,
+e:"A priorização baseada em risco, histórico e impacto da mudança reduz o tempo até a primeira falha detectada. A suíte completa ainda pode rodar depois, por exemplo à noite."}
+];
+
+const LETTERS = ["A","B","C","D","E"];
+const $ = id => document.getElementById(id);
+let deck = [], idx = 0, answers = [];
+
+/* tema */
+(function initSelect(){
+  const sel = $("topicSel");
+  const all = document.createElement("option");
+  all.value = "all"; all.textContent = "Todos os temas (" + QUESTIONS.length + " questões)";
+  sel.appendChild(all);
+  Object.keys(TOPICS).forEach(k=>{
+    const n = QUESTIONS.filter(q=>q.t===k).length;
+    if(!n) return;
+    const op = document.createElement("option");
+    op.value = k; op.textContent = TOPICS[k] + " (" + n + ")";
+    sel.appendChild(op);
+  });
+  $("hTotal").textContent = QUESTIONS.length;
+})();
+
+function shuffle(arr){
+  const a = arr.slice();
+  for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}
+  return a;
+}
+function show(id){
+  ["home","quiz","result"].forEach(s=>$(s).classList.toggle("hidden", s!==id));
+  window.scrollTo(0,0);
+}
+function start(list){
+  deck = $("shuffle").checked ? shuffle(list) : list.slice();
+  idx = 0; answers = new Array(deck.length).fill(null);
+  buildSuite($("suite"), true);
+  show("quiz"); render();
+}
+$("startBtn").onclick = ()=>{
+  const v = $("topicSel").value;
+  start(v==="all" ? QUESTIONS : QUESTIONS.filter(q=>q.t===v));
+};
+
+function buildSuite(el, clickable){
+  el.innerHTML = "";
+  el.style.gridTemplateColumns = deck.length < 25 && window.innerWidth > 480 ? "repeat(" + Math.max(deck.length,10) + ",1fr)" : "";
+  deck.forEach((q,i)=>{
+    const b = document.createElement("button");
+    b.className = "cell";
+    b.title = "Questão " + (i+1);
+    b.setAttribute("aria-label","Ir para a questão " + (i+1));
+    if(clickable) b.onclick = ()=>{idx=i;render();};
+    else b.disabled = true;
+    el.appendChild(b);
+  });
+}
+function paintSuite(el){
+  [...el.children].forEach((c,i)=>{
+    c.classList.remove("pass","fail","current");
+    if(answers[i]!==null) c.classList.add(answers[i]===deck[i].a ? "pass" : "fail");
+    if(el.id==="suite" && i===idx) c.classList.add("current");
+  });
+}
+function stats(){
+  const done = answers.filter(a=>a!==null).length;
+  const ok = answers.filter((a,i)=>a!==null && a===deck[i].a).length;
+  return {done, ok, ko: done-ok, total: deck.length};
+}
+function pct(n,d){return d ? Math.round(n/d*1000)/10 : 0}
+function fmt(p){return String(p).replace(".",",") + "%"}
+
+function updateScore(){
+  const s = stats();
+  $("sDone").textContent = s.done + "/" + s.total;
+  $("sOk").textContent = s.ok + " (" + fmt(pct(s.ok,s.done)) + ")";
+  $("sKo").textContent = s.ko + " (" + fmt(pct(s.ko,s.done)) + ")";
+  $("sLeft").textContent = s.total - s.done;
+}
+
+function render(){
+  const q = deck[idx];
+  const num = QUESTIONS.indexOf(q) + 1;
+  $("qNum").textContent = "Questão " + (idx+1) + " de " + deck.length + (deck.length!==QUESTIONS.length || $("shuffle").checked ? "  (nº " + num + " do banco)" : "");
+  $("qTopic").textContent = TOPICS[q.t];
+  $("qStmt").textContent = q.q;
+  const box = $("qOpts"); box.innerHTML = "";
+  const ans = answers[idx];
+  q.o.forEach((txt,i)=>{
+    const b = document.createElement("button");
+    b.className = "opt";
+    const l = document.createElement("span"); l.className="l"; l.textContent = LETTERS[i];
+    const t = document.createElement("span"); t.textContent = txt;
+    b.append(l,t);
+    if(ans!==null){
+      b.disabled = true;
+      if(i===q.a) b.classList.add("right");
+      else if(i===ans) b.classList.add("wrong");
+    } else b.onclick = ()=>choose(i);
+    box.appendChild(b);
+  });
+  const fb = $("qFeed");
+  if(ans!==null){
+    const ok = ans===q.a;
+    fb.className = "feedback" + (ok ? "" : " bad");
+    fb.innerHTML = "";
+    const h = document.createElement("b");
+    h.textContent = ok ? "Você acertou — alternativa " + LETTERS[q.a] + "." : "Você marcou " + LETTERS[ans] + ". A correta é a alternativa " + LETTERS[q.a] + ".";
+    const p = document.createElement("span"); p.textContent = q.e;
+    fb.append(h,p);
+  } else fb.className = "hidden";
+  $("prevBtn").disabled = idx===0;
+  $("nextBtn").disabled = idx===deck.length-1;
+  $("nextBtn").textContent = "Próxima";
+  updateScore(); paintSuite($("suite"));
+}
+function choose(i){
+  if(answers[idx]!==null) return;
+  answers[idx] = i;
+  render();
+  $("qFeed").scrollIntoView({block:"nearest",behavior:"smooth"});
+  if(stats().done===deck.length) $("finishBtn").textContent = "Ver resultado";
+}
+$("prevBtn").onclick = ()=>{ if(idx>0){idx--;render();window.scrollTo(0,0);} };
+$("nextBtn").onclick = ()=>{ if(idx<deck.length-1){idx++;render();window.scrollTo(0,0);} };
+$("finishBtn").onclick = ()=>{
+  const s = stats();
+  if(s.done < s.total && !confirm("Ainda faltam " + (s.total-s.done) + " questões. Deseja finalizar mesmo assim?")) return;
+  showResult();
+};
+document.addEventListener("keydown",e=>{
+  if($("quiz").classList.contains("hidden")) return;
+  if(e.target.tagName==="SELECT"||e.target.tagName==="INPUT") return;
+  const k = e.key.toUpperCase();
+  const i = LETTERS.indexOf(k);
+  if(i>=0 && i<deck[idx].o.length && !e.ctrlKey && !e.metaKey) choose(i);
+  else if(e.key==="ArrowRight") $("nextBtn").click();
+  else if(e.key==="ArrowLeft") $("prevBtn").click();
+});
+
+function showResult(){
+  const s = stats();
+  const pOk = pct(s.ok,s.total), pKo = pct(s.ko,s.total);
+  $("rTitle").textContent = pOk>=90 ? "Excelente! Você está pronto para a prova."
+    : pOk>=70 ? "Bom resultado — revise os pontos que errou."
+    : pOk>=50 ? "Na média — vale reforçar os temas com menor acerto."
+    : "Ainda há bastante a revisar — foque nos temas abaixo.";
+  $("rOk").textContent = fmt(pOk); $("rOkN").textContent = s.ok + " de " + s.total + " acertos";
+  $("rKo").textContent = fmt(pKo); $("rKoN").textContent = s.ko + " de " + s.total + " erros";
+  const un = s.total - s.done;
+  $("rUnans").textContent = un ? un + " questão(ões) sem resposta, contadas como não acertadas (" + fmt(pct(un,s.total)) + ")." : "";
+  buildSuite($("rSuite"), false); paintSuite($("rSuite"));
+
+  const tb = $("rTable"); tb.innerHTML = "";
+  Object.keys(TOPICS).forEach(k=>{
+    const ids = deck.map((q,i)=>i).filter(i=>deck[i].t===k);
+    if(!ids.length) return;
+    const ok = ids.filter(i=>answers[i]===deck[i].a).length;
+    const p = pct(ok,ids.length);
+    const tr = document.createElement("tr");
+    const c1 = document.createElement("td"); c1.textContent = TOPICS[k];
+    const c2 = document.createElement("td"); c2.textContent = ok + "/" + ids.length;
+    const c3 = document.createElement("td"); c3.textContent = fmt(p);
+    const c4 = document.createElement("td");
+    const bar = document.createElement("div"); bar.className="bar";
+    const fill = document.createElement("i"); fill.style.width = p + "%";
+    bar.appendChild(fill); c4.appendChild(bar);
+    tr.append(c1,c2,c3,c4); tb.appendChild(tr);
+  });
+
+  const wl = $("rWrong"); wl.innerHTML = "";
+  const wrong = deck.map((q,i)=>i).filter(i=>answers[i]!==null && answers[i]!==deck[i].a);
+  $("rWrongWrap").classList.toggle("hidden", !wrong.length);
+  $("retryWrongBtn").classList.toggle("hidden", !wrong.length);
+  wrong.forEach(i=>{
+    const q = deck[i];
+    const d = document.createElement("details");
+    const sm = document.createElement("summary");
+    sm.textContent = "Questão " + (i+1) + " — " + TOPICS[q.t];
+    const p1 = document.createElement("p"); p1.style.whiteSpace="pre-line"; p1.textContent = q.q;
+    const p2 = document.createElement("p"); p2.textContent = "Sua resposta: " + LETTERS[answers[i]] + ") " + q.o[answers[i]];
+    p2.style.color = "var(--fail)";
+    const p3 = document.createElement("p"); p3.textContent = "Correta: " + LETTERS[q.a] + ") " + q.o[q.a];
+    p3.style.color = "var(--pass)";
+    const p4 = document.createElement("p"); p4.className="muted"; p4.textContent = q.e;
+    d.append(sm,p1,p2,p3,p4); wl.appendChild(d);
+  });
+  $("retryWrongBtn").onclick = ()=>start(wrong.map(i=>deck[i]));
+  show("result");
+}
+$("restartBtn").onclick = ()=>{ $("finishBtn").textContent = "Finalizar e ver resultado"; show("home"); };
+</script>
+</body>
+</html>
